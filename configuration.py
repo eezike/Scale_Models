@@ -25,5 +25,3 @@ class Configuration:
 
         else:
             raise ValueError("Invalid process ID")
-            
-        self.clock_rate = random.randint(1, 6)
