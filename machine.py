@@ -23,13 +23,16 @@ class Machine:
 
         self.start()
 
+    # Start machine
     def start(self):
         self.receive_thread.start()
         self.connect()
 
+    # Stop machine
     def stop(self):
         self.stop_event.set()
 
+    # Connect to all other machines
     def connect(self):
         if len(self.send_sockets) != len(self.config.peer_ports):
             print("Peer ports and send sockets do not match")
@@ -53,6 +56,7 @@ class Machine:
         for i, peer_port in enumerate(self.config.peer_ports):
             threading.Thread(target = connect_loop, args=(peer_port, i)).start()
 
+    # Start receiving and handling clients
     def receive_loop(self):
 
         self.receive_socket.bind((self.config.HOST, self.config.port))
