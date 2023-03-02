@@ -9,14 +9,14 @@ class LogicalClock:
         self.delayer = clock_rate
     
     def tick(self):
-        # self._time += 1
+        print('Tick', self._time)
+        self._time += 1
 
-        # if self._time % self.delayer == 0:
-        #     time.sleep(1)
-        pass
+        if self._time % self.delayer == 0:
+            time.sleep(1)
     
     def update(self, new_time: int):
-        self._time = max(self.time, new_time) + 1
+        self._time = max(self._time, new_time) + 1
 
     def get_time(self):
         return self._time

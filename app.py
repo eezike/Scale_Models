@@ -1,28 +1,16 @@
 from machine import Machine
-import random 
-import time
-from machine import NUM_MACHINES
+import threading
 
-# create machines with random clock rates
-machines = []
-for i in range(NUM_MACHINES):
-    clock_rate = random.randint(1, 6)
-    machine = Machine(i, clock_rate)
-    machines.append(machine)
+NUM_MACHINES = 3
 
-# start machines
-for machine in machines:
-    machine.start()
+machines = [Machine(i+1) for i in range(NUM_MACHINES)]
 
-# run for a fixed duration
-DURATION = 60 # seconds
-start_time = time.monotonic()
-while time.monotonic() - start_time < DURATION:
-    time.sleep(1)
+connect_threads = [threading.Thread(target = machines[i].init_connection) for i in range(NUM_MACHINES)]
+for t in connect_threads:
+    t.start()
 
-# stop machines and wait for threads to join
-for machine in machines:
-    machine.stop()
-for machine in machines:
-    machine.receive_thread.join()
-    machine.send_thread.join()
+for t in connect_threads:
+    t.join()
+
+print("Done")
+
