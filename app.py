@@ -1,16 +1,19 @@
-from machine import Machine
-import threading
+from machine import Machine, main
+import multiprocessing
 
-NUM_MACHINES = 3
+if __name__ == '__main__':
+    NUM_MACHINES = 3
+    processes = []
+    
+    # Spawns a new process for each machine that we have to run 
+    for i in range(NUM_MACHINES):
+        process = multiprocessing.Process(target=main, args=(i+1,))
+        processes.append(process)
 
-machines = [Machine(i+1) for i in range(NUM_MACHINES)]
+    for process in processes:
+        process.start()
 
-connect_threads = [threading.Thread(target = machines[i].init_connection) for i in range(NUM_MACHINES)]
-for t in connect_threads:
-    t.start()
+    for process in processes:
+        process.join()
 
-for t in connect_threads:
-    t.join()
-
-print("Done")
-
+    print("Done")
