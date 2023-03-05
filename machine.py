@@ -56,14 +56,13 @@ class Machine:
         self.receive_thread = threading.Thread(target=self.receive_loop)
         self.send_thread = threading.Thread(target=self.send_loop)
         self.stop_event = threading.Event()
-        self.lock = threading.Lock()
         
         # Log the machine's initial clock rate
         self.log_event("initial")
     
     def pprint(self, content, end = "\n"):
         if not self.SILENT:
-            print(f"{self.MACHINE_ID}: {content}", end= end)
+            print(f"Machine {self.MACHINE_ID}: {content}", end= end)
     
     # Initialize connections
     def init_connection(self):
@@ -72,8 +71,6 @@ class Machine:
         time.sleep(10)
         self.connect()
         self.pprint("All connected")
-        # Once connected, start the machine (init send thread) only if using threads for testing
-        self.start()
 
     # Start machine
     def start(self):
@@ -120,14 +117,11 @@ class Machine:
                 if not data:
                     raise BrokenPipeError
                 
-                message: int = struct.unpack("i", data)[0]
-                self.pprint(message)
+                message: int = struct.unpack("l", data)[0]
+                self.pprint("Received clock_time: " + str(message) + "; Queue len: " + str(self.message_queue.qsize()))
 
                 # Add the message to the queue
-                # Use locks as send and receive thread could access queue simultaneously
-                self.lock.acquire()
                 self.message_queue.put(message)
-                self.lock.release()
 
         except KeyboardInterrupt:
             print("Exiting...")
@@ -147,14 +141,14 @@ class Machine:
                     new_time = self.message_queue.get()
                     self.clock.update(new_time)
                     self.log_event("receive")
+                    self.clock.tick()
                     continue
 
                 # Choose a message event between 1-10
                 event = random.randint(1, 10)
-                self.clock.tick()
 
                 # Pack the message as an integer (as we only send the clock time)
-                message =  struct.pack("i", self.clock.get_time())
+                message =  struct.pack("l", self.clock.get_time())
 
                 """
                 Event 1: Send the message to a machine
@@ -164,19 +158,19 @@ class Machine:
                 """
                 if event == 1:
                     self.send_sockets[self.PEER_PORTS[0]].sendall(message)
-                    self.clock.tick()
-                    self.log_event("send")
+                    event = "send"
                 elif event == 2:
                     self.send_sockets[self.PEER_PORTS[1]].sendall(message)
-                    self.clock.tick()
-                    self.log_event("send")
+                    event = "send"
                 elif event == 3:
                     for sock in self.send_sockets.values():
                         sock.sendall(message)
-                        self.log_event("send")
-                        self.clock.tick()
+                    event = "send"
                 else:
-                    self.log_event()
+                    event = "internal"
+                
+                self.clock.tick()
+                self.log_event(event)
         except KeyboardInterrupt:
             print("Exiting...")
         except BrokenPipeError:
@@ -188,10 +182,7 @@ class Machine:
 
     def log_event(self, event_type = "internal"):
         # Log event to file with machine id, event type, timestamp, queue length, and logical clock value
-        # Use locks as send and receive thread could access queue simultaneously
-        self.lock.acquire()
         queue_length = self.message_queue.qsize()
-        self.lock.release()
 
         # Get the system's time in H:M:S format
         system_time = datetime.now()
@@ -211,20 +202,24 @@ class Machine:
         self.log_file.flush()
 
 # Creates machine with specified id via command terminal args
-def create_machine() -> Machine:
-    if len(sys.argv) != 2:
-        print("Usage: python machine.py machine_id")
-        exit(1)
+def create_machine(machine_id=None) -> Machine:
+    if machine_id == None:
+        if len(sys.argv) != 2:
+            print("Usage: python machine.py machine_id")
+            exit(1)
 
-    try:
-        machine_id = int(sys.argv[1])
-    except:
-        print("Usage: python machine.py machine_id:int")
-        exit(1)
-
+        try:
+            machine_id = int(sys.argv[1])
+        except:
+            print("Usage: python machine.py machine_id:int")
+            exit(1)
+    
     return Machine(machine_id)
 
-if __name__ == '__main__':
-    machine = create_machine()
+def main(id=None):
+    machine = create_machine(id)
     machine.init_connection()
     machine.start()
+
+if __name__ == '__main__':
+    main()

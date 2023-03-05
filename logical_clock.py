@@ -9,7 +9,6 @@ class LogicalClock:
         self.delayer = self.clock_rate
     
     def tick(self):
-        print('Tick', self._time)
         self._time += 1
 
         if self._time % self.delayer == 0:
