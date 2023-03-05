@@ -4,9 +4,9 @@ import random
 class LogicalClock:
     def __init__(self):
         self._time: int = 0
-        clock_rate = random.randint(1, 6)
-        print(f"Clock rate: {clock_rate}")
-        self.delayer = clock_rate
+        self.clock_rate = random.randint(1, 6)
+        print(f"Clock rate: {self.clock_rate}")
+        self.delayer = self.clock_rate
     
     def tick(self):
         print('Tick', self._time)
