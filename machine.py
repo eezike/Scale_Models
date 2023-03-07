@@ -18,12 +18,12 @@ class Machine:
 
         self.SILENT = silent
 
+        self.MACHINE_ID = machine_id
+
         # Only allow for machine_ids between 1 and 3 inclusive
         if machine_id < 1 or machine_id > 3:
             self.pprint("Only create machines with ids between 1 and 3 inclusive")
             exit(1)
-
-        self.MACHINE_ID = machine_id
         
         # Initialize the machine's clock
         self.clock = LogicalClock(clock_rate)
@@ -46,7 +46,7 @@ class Machine:
         self.receive_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Initialize a dict where sockets for sending messagese are values, and the key's are the recipients' ports
-        self.send_sockets = {}
+        self.send_sockets: dict[int, socket.socket] = {}
         for port in self.PEER_PORTS:
             self.send_sockets[port] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -65,28 +65,36 @@ class Machine:
         if not self.SILENT:
             print(f"Machine {self.MACHINE_ID}: {content}", end= end)
     
-    # Initialize connections (takes )
-    def init_connection(self):
+    # Initialize connections and start sending process
+    def run(self):
         self.receive_thread.start()
         self.pprint(f"Connecting in {self.CONNECTION_WAIT} seconds...")
         time.sleep(self.CONNECTION_WAIT)
         self.connect()
-        self.pprint("All connected")
+        
+        while self.connected == False:
+           time.sleep(0.01)
 
-    # Start machine
-    def start(self):
+        self.pprint("All connected; starting now")
         self.send_thread.start()
+        for i in range(60, -1, -1):
+            if i % 3 == (self.MACHINE_ID - 1):
+                self.pprint(i)
+            time.sleep(1)
+        self.stop()
+
 
     # Stop machine
     def stop(self):
+        self.connected = True
         self.close()
         self.stop_event.set()
 
     # Close all sockets and log files in machine
     def close(self):
         self.receive_socket.close()
-        for port in self.PEER_PORTS:
-            self.send_sockets[port].close()
+        for sock in self.send_sockets.values():
+            sock.close()
 
         self.log_file.close()
 
@@ -102,8 +110,6 @@ class Machine:
                 except socket.error as msg:
                     self.pprint(f"Socket binding error: " + str(msg) + "\n" + "Retrying in 5 secs...")
                     time.sleep(5)
-        
-        self.connected = True
 
     # Start receiving and handling clients
     def receive_loop(self):
@@ -116,9 +122,10 @@ class Machine:
             clientsocket, addr = self.receive_socket.accept()
             self.pprint(f"{addr[0]} has joined")
             threading.Thread(target = self.handle_client, args = (clientsocket, addr)).start()
-        return
 
-    def handle_client(self, clientsocket, addr):
+        self.connected = True
+
+    def handle_client(self, clientsocket: socket.socket, addr) -> None:
         try:
             while not self.stop_event.is_set():
 
@@ -127,15 +134,11 @@ class Machine:
                 if not data:
                     raise BrokenPipeError
                 
-                message: int = struct.unpack("l", data)[0]
-                self.pprint("Received clock_time: " + str(message) + "; Queue len: " + str(self.message_queue.qsize()))
+                message: int = struct.unpack("i", data)[0]
 
                 # Add the message to the queue
                 self.message_queue.put(message)
-
-        except KeyboardInterrupt:
-            print("Exiting...")
-        except (BrokenPipeError, BrokenPipeError):
+        except (KeyboardInterrupt, BrokenPipeError, BrokenPipeError):
             self.pprint(addr[0] + ' disconnected unexpectedly')
         finally:
             # Close the client socket
@@ -147,18 +150,19 @@ class Machine:
         try:
             while not self.stop_event.is_set():
 
+                self.clock.tick()
+
                 if not self.message_queue.empty():
                     new_time = self.message_queue.get()
                     self.clock.update(new_time)
                     self.log_event("receive")
-                    self.clock.tick()
                     continue
 
                 # Choose a message event between 1-10 (force event for testing purposes)
                 event = force_event if force_event != None else random.randint(1, 10)
 
                 # Pack the message as an integer (as we only send the clock time)
-                message =  struct.pack("l", self.clock.get_time())
+                message =  struct.pack("i", self.clock.get_time())
 
                 """
                 Event 1: Send the message to a machine
@@ -179,15 +183,10 @@ class Machine:
                 else:
                     event = "internal"
                 
-                self.clock.tick()
                 self.log_event(event)
-        except KeyboardInterrupt:
-            print("Exiting...")
-        except BrokenPipeError:
+        except (KeyboardInterrupt, BrokenPipeError, OSError):
             self.pprint("Broken pipe")
         finally:
-            for sock in self.send_sockets.values():
-                sock.close()
             self.stop()
 
     def log_event(self, event_type = "internal"):
@@ -208,11 +207,14 @@ class Machine:
             log_entry = f"[internal_event, {system_time}, {self.clock.get_time()}]\n"
 
         # write the log entry to the log file
-        self.log_file.write(log_entry)
-        self.log_file.flush()
+        try:
+            self.log_file.write(log_entry)
+            self.log_file.flush()
+        except:
+            pass
 
 # Creates machine with specified id via command terminal args
-def create_machine(machine_id=None) -> Machine:
+def create_machine(machine_id = None, silent = False) -> Machine:
     if machine_id == None:
         if len(sys.argv) != 2:
             print("Usage: python machine.py machine_id")
@@ -224,12 +226,11 @@ def create_machine(machine_id=None) -> Machine:
             print("Usage: python machine.py machine_id:int")
             exit(1)
     
-    return Machine(machine_id)
+    return Machine(machine_id, silent=silent)
 
 def main(id=None):
     machine = create_machine(id)
-    machine.init_connection()
-    machine.start()
+    machine.run()
 
 if __name__ == '__main__':
     main()

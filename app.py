@@ -1,5 +1,6 @@
 from machine import Machine, main
 import multiprocessing
+import time
 
 if __name__ == '__main__':
     NUM_MACHINES = 3
