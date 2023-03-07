@@ -2,9 +2,9 @@ import time
 import random
 
 class LogicalClock:
-    def __init__(self):
+    def __init__(self, clock_rate = None):
         self._time: int = 0
-        self.clock_rate = random.randint(1, 6)
+        self.clock_rate = clock_rate if clock_rate != None else random.randint(1, 6)
         print(f"Clock rate: {self.clock_rate}")
         self.delayer = self.clock_rate
     

@@ -16,4 +16,4 @@ if __name__ == '__main__':
     for process in processes:
         process.join()
 
-    print("Done")
+    print("Three machines created using multiprocessing.")

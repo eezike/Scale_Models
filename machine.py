@@ -13,7 +13,7 @@ class Machine:
     HOST = "localhost"
     NUM_PROCESSES = 3
 
-    def __init__(self, machine_id: int, silent: bool = False) -> None:
+    def __init__(self, machine_id: int, silent: bool = False, clock_rate: int = None, log_dir: str = "logs", ) -> None:
 
         self.SILENT = silent
 
@@ -25,16 +25,15 @@ class Machine:
         self.MACHINE_ID = machine_id
         
         # Initialize the machine's clock
-        self.clock = LogicalClock()
+        self.clock = LogicalClock(clock_rate)
 
         # Create the message queue
         self.message_queue = queue.Queue()
 
         # Create the log file
-        LOGS_DIR = "logs"
-        if not os.path.exists(LOGS_DIR):
-            os.makedirs(LOGS_DIR)
-        self.log_file = open(f"{LOGS_DIR}/machine{self.MACHINE_ID}.log", "w")
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        self.log_file = open(f"{log_dir}/machine{self.MACHINE_ID}.log", "w")
 
         # Define the machine's port and the port of other processes
         self.PEER_PORTS = [50050, 50051, 50052]
