@@ -1,1 +1,7 @@
-[Machine initialized with clock_rate: 7]
+[Machine initialized with clock_rate: 2]
+[send_event, 21:59:39, 1]
+[receive_event, 21:59:40, 0, 3]
+[internal_event, 21:59:40, 4]
+[receive_event, 21:59:41, 0, 9]
+[internal_event, 21:59:41, 10]
+[receive_event, 21:59:42, 0, 12]
