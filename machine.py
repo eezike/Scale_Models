@@ -14,7 +14,7 @@ class Machine:
     NUM_PROCESSES = 3
     CONNECTION_WAIT = 10
 
-    def __init__(self, machine_id: int, silent: bool = False, clock_rate: int = None, log_dir: str = "logs", ) -> None:
+    def __init__(self, machine_id: int, silent: bool = False, clock_rate: int = None, log_dir: str = "logs") -> None:
 
         self.SILENT = silent
 
@@ -51,7 +51,8 @@ class Machine:
             self.send_sockets[port] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Mark if socket is fully connected
-        self.connected = False
+        self.receive_connected = False
+        self.send_connected = False
 
         # Define the threads for receiving and sending messages
         self.receive_thread = threading.Thread(target=self.receive_loop)
@@ -71,7 +72,7 @@ class Machine:
         time.sleep(self.CONNECTION_WAIT)
         self.connect()
         
-        while self.connected == False:
+        while not (self.send_connected and self.receive_connected):
            time.sleep(0.001)
 
         self.pprint("All connected; starting now")
@@ -82,10 +83,9 @@ class Machine:
             time.sleep(1)
         self.stop()
 
-
     # Stop machine
     def stop(self):
-        self.connected = True
+        self.receive_connected = self.send_connected = False
         self.close()
         self.stop_event.set()
 
@@ -111,6 +111,8 @@ class Machine:
                     self.pprint(f"Socket binding error: " + str(msg) + "\n" + "Retrying in 5 secs...")
                     time.sleep(5)
 
+        self.send_connected = True
+
     # Start receiving and handling clients
     def receive_loop(self):
 
@@ -123,7 +125,7 @@ class Machine:
             self.pprint(f"{addr[0]} has joined")
             threading.Thread(target = self.handle_client, args = (clientsocket, addr)).start()
 
-        self.connected = True
+        self.receive_connected = True
 
     def handle_client(self, clientsocket: socket.socket, addr) -> None:
         try:
@@ -145,7 +147,7 @@ class Machine:
             clientsocket.close()
             self.stop()
 
-    def send_loop(self, force_event = None):
+    def send_loop(self):
         # Send messages to other machines with random probabilities
         try:
             while not self.stop_event.is_set():
@@ -159,7 +161,7 @@ class Machine:
                     continue
 
                 # Choose a message event between 1-10 (force event for testing purposes)
-                event = force_event if force_event != None else random.randint(1, 10)
+                event = random.randint(1, 10)
 
                 # Pack the message as an integer (as we only send the clock time)
                 message =  struct.pack("i", self.clock.get_time())
@@ -214,7 +216,7 @@ class Machine:
             pass
 
 # Creates machine with specified id via command terminal args
-def create_machine(machine_id = None, silent = False) -> Machine:
+def create_machine(machine_id = None, clock_rate = None, silent = False) -> Machine:
     if machine_id == None:
         if len(sys.argv) != 2:
             print("Usage: python machine.py machine_id")
@@ -226,10 +228,10 @@ def create_machine(machine_id = None, silent = False) -> Machine:
             print("Usage: python machine.py machine_id:int")
             exit(1)
     
-    return Machine(machine_id, silent=silent)
+    return Machine(machine_id, silent=silent, clock_rate=clock_rate)
 
-def main(id=None):
-    machine = create_machine(id)
+def main(id=None, clock_rate = None):
+    machine = create_machine(id, clock_rate)
     machine.run()
 
 if __name__ == '__main__':
