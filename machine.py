@@ -67,13 +67,12 @@ class Machine:
     
     # Initialize connections and start sending process
     def run(self):
-        self.receive_thread.start()
         self.pprint(f"Connecting in {self.CONNECTION_WAIT} seconds...")
         time.sleep(self.CONNECTION_WAIT)
         self.connect()
         
         while self.connected == False:
-           time.sleep(0.01)
+           time.sleep(0.001)
 
         self.pprint("All connected; starting now")
         self.send_thread.start()
@@ -101,6 +100,7 @@ class Machine:
     # Connect to all other machines
     def connect(self):
         self.pprint("Connecting now...")
+        self.receive_thread.start()
         
         for port in self.PEER_PORTS:
             while True:
